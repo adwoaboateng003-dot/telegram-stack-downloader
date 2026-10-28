@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram - LIFO Stack Movie Downloader & Streamer</title>
+    <style>
+        :root {
+            --tg-bg: #0e1621;
+            --tg-sidebar: #17212b;
+            --tg-chat-bg: #0e1621;
+            --tg-bubble: #182533;
+            --tg-accent: #2b5278;
+            --tg-blue: #2AABEE;
+            --tg-green: #4cd964;
+            --tg-amber: #ff9500;
+            --text-main: #f5f5f5;
+            --text-muted: #7f91a4;
+            --border-color: #242f3d;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: #070b10;
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+        }
+
+        .telegram-frame {
+            width: 100%;
+            max-width: 1400px;
+            height: 92vh;
+            background: var(--tg-bg);
+            border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+            border: 1px solid var(--border-color);
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* Left Sidebar: Channels */
+        .sidebar {
+            width: 300px;
+            background: var(--tg-sidebar);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 14px 16px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .tg-logo {
+            width: 30px;
+            height: 30px;
+            background: var(--tg-blue);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 16px;
+        }
+
+        .search-box {
+            padding: 10px 14px;
+            background: var(--tg-sidebar);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 8px 12px;
+            background: #0e1621;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: white;
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        .search-input:focus {
+            border-color: var(--tg-blue);
+        }
+
+        .channels-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .channel-item {
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.02);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .channel-item:hover, .channel-item.active {
+            background: #242f3d;
+        }
+
+        .channel-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            background: var(--tg-accent);
+            flex-shrink: 0;
+        }
+
+        .channel-info h4 { font-size: 0.9rem; margin-bottom: 2px; }
+        .channel-info p { font-size: 0.75rem; color: var(--text-muted); }
+
+        /* Center Chat / Movies Area */
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--tg-chat-bg);
+            border-right: 1px solid var(--border-color);
+        }
+
+        .chat-header {
+            padding: 14px 20px;
+            background: var(--tg-sidebar);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .movie-card {
+            background: var(--tg-bubble);
+            border-radius: 12px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            max-width: 600px;
+        }
+
+        .movie-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--tg-accent);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            flex-shrink: 0;
+        }
+
+        .movie-details {
+            flex: 1;
+        }
+
+        .movie-title {
+            font-size: 0.92rem;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 3px;
+        }
+
+        .movie-meta {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-action {
+            border: none;
+            padding: 7px 12px;
+            border-radius: 18px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .btn-play { background: #3b82f6; color: white; }
+        .btn-play:hover { background: #2563eb; }
+        .btn-download { background: var(--tg-blue); color: white; }
+        .btn-download:hover { background: #2396d3; }
+
+        /* Right Panel: Downloads Manager (Stack + Downloaded) */
+        .downloads-panel {
+            width: 360px;
+            background: var(--tg-sidebar);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-header {
+            padding: 16px;
+            background: var(--tg-sidebar);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .tabs {
+            display: flex;
+            background: #0e1621;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .tab {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+        }
+
+        .tab.active {
+            color: var(--tg-blue);
+            border-bottom-color: var(--tg-blue);
+            background: rgba(42, 171, 238, 0.05);
+        }
+
+        .downloads-content {
+            flex: 1;
+            padding: 14px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .download-card {
+            background: var(--tg-bg);
+            border-radius: 10px;
+            padding: 12px;
+            border-left: 4px solid var(--text-muted);
+            position: relative;
+        }
+
+        .download-card.active {
+            border-left-color: var(--tg-green);
+            background: #102319;
+        }
+
+        .download-card.paused {
+            border-left-color: var(--tg-amber);
+            opacity: 0.85;
+        }
+
+        .download-card.completed {
+            border-left-color: var(--tg-blue);
+            background: #12222d;
+        }
+
+        .dl-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .dl-name { font-size: 0.85rem; font-weight: 600; }
+        
+        .status-tag {
+            font-size: 0.65rem;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 6px;
+            text-transform: uppercase;
+        }
+        .status-tag.active { background: var(--tg-green); color: #000; }
+        .status-tag.paused { background: var(--tg-amber); color: #000; }
+        .status-tag.completed { background: var(--tg-blue); color: #fff; }
+
+        .progress-track {
+            background: #242f3d;
+            height: 6px;
+            border-radius: 3px;
+            overflow: hidden;
+            width: 100%;
+            margin-top: 6px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--tg-green);
+            width: 0%;
+            transition: width 0.2s linear;
+        }
+        .progress-fill.paused { background: var(--tg-amber); }
+        .progress-fill.completed { background: var(--tg-blue); width: 100% !important; }
+
+        .stack-note {
+            margin-top: 6px;
+            font-size: 0.62rem;
+            color: var(--tg-blue);
+            font-weight: bold;
+            text-align: right;
+        }
+
+        .empty-box {
+            text-align: center;
+            color: var(--text-muted);
+            margin-top: 60px;
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+
+        /* Video Modal Player */
+        .video-modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .video-container {
+            width: 90%;
+            max-width: 700px;
+            background: #17212b;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+        .video-header {
+            padding: 12px 16px;
+            background: #0e1621;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+        }
+        .close-btn {
+            background: none; border: none; color: #fff; font-size: 1.2rem; cursor: pointer;
+        }
+        .video-player-box {
+            width: 100%;
+            height: 380px;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="telegram-frame">
+        
+        <!-- Left Sidebar: Channels -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="tg-logo">✈</div>
+                <span>Telegram Channels</span>
+            </div>
+            
+            <div class="search-box">
+                <input type="input" class="search-input" id="searchInput" placeholder="Search movies..." onkeyup="filterMovies()">
+            </div>
+
+            <div class="channels-list" id="channelsList">
+                <div class="channel-item active" onclick="switchChannel('cinema')">
+                    <div class="channel-avatar">🎬</div>
+                    <div class="channel-info">
+                        <h4>Cinema Zone HD</h4>
+                        <p>15 Blockbusters</p>
+                    </div>
+                </div>
+                <div class="channel-item" onclick="switchChannel('nollywood')">
+                    <div class="channel-avatar">🇳🇬</div>
+                    <div class="channel-info">
+                        <h4>Nollywood & Afro Vault</h4>
+                        <p>15 African Hits</p>
+                    </div>
+                </div>
+                <div class="channel-item" onclick="switchChannel('anime')">
+                    <div class="channel-avatar">⚡</div>
+                    <div class="channel-info">
+                        <h4>Anime & Animation Hub</h4>
+                        <p>15 Animated Films</p>
+                    </div>
+                </div>
+                <div class="channel-item" onclick="switchChannel('ultrahd')">
+                    <div class="channel-avatar">💎</div>
+                    <div class="channel-info">
+                        <h4>4K Ultra HD Vault</h4>
+                        <p>15 Masterpieces</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center: Movies List -->
+        <div class="chat-area">
+            <div class="chat-header">
+                <div>
+                    <h3 id="currentChannelTitle" style="font-size: 1rem; color: #fff;">Cinema Zone HD 🍿</h3>
+                    <span id="currentChannelSub" style="font-size: 0.8rem; color: var(--text-muted);">Action & Sci-Fi Blockbusters</span>
+                </div>
+            </div>
+
+            <div class="chat-messages" id="moviesContainer">
+                <!-- Dynamically loaded movies -->
+            </div>
+        </div>
+
+        <!-- Right Side: Downloads & Downloaded Manager -->
+        <div class="downloads-panel">
+            <div class="panel-header">
+                <h3>Downloads Manager</h3>
+                <span style="font-size:0.7rem; color:var(--tg-blue); font-weight:bold;">STACK (LIFO)</span>
+            </div>
+
+            <div class="tabs">
+                <div class="tab active" id="tabDownloading" onclick="switchTab('downloading')">Downloading (<span id="activeCount">0</span>)</div>
+                <div class="tab" id="tabDownloaded" onclick="switchTab('downloaded')">Downloaded (<span id="completedCount">0</span>)</div>
+            </div>
+
+            <div class="downloads-content" id="downloadsContent">
+                <div class="empty-box">
+                    No active downloads.<br>Click <b>"Download"</b> on any movie!
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Video Modal Player -->
+    <div class="video-modal" id="videoModal">
+        <div class="video-container">
+            <div class="video-header">
+                <span id="modalTitle">Now Playing Trailer</span>
+                <button class="close-btn" onclick="closeVideoModal()">✕</button>
+            </div>
+            <div class="video-player-box" id="videoBox">
+                <video id="trailerVideo" width="100%" height="100%" controls>
+                    <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4">
+                    Your browser does not support HTML video.
+                </video>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // Movie Database across 4 Channels (15 movies each)
+    const channelsData = {
+        cinema: {
+            title: "Cinema Zone HD 🍿",
+            sub: "Action & Sci-Fi Blockbusters",
+            movies: [
+                { name: "Avengers.Endgame.2019.1080p.mkv", size: "2.4 GB" },
+                { name: "Inception.2010.BluRay.720p.mp4", size: "1.8 GB" },
+                { name: "Interstellar.2014.IMAX.1080p.mkv", size: "3.1 GB" },
+                { name: "SpiderMan.Across.SpiderVerse.mp4", size: "2.1 GB" },
+                { name: "The.Matrix.1999.Remastered.mkv", size: "1.5 GB" },
+                { name: "The.Dark.Knight.2008.1080p.mp4", size: "2.6 GB" },
+                { name: "Gladiator.2000.Extended.mkv", size: "2.8 GB" },
+                { name: "Avatar.The.Way.Of.Water.mp4", size: "4.2 GB" },
+                { name: "Tenet.2020.IMAX.mkv", size: "2.3 GB" },
+                { name: "Blade.Runner.2049.mp4", size: "3.0 GB" },
+                { name: "Dune.Part.Two.2024.mkv", size: "3.5 GB" },
+                { name: "John.Wick.Chapter.4.mp4", size: "2.2 GB" },
+                { name: "Mad.Max.Fury.Road.mkv", size: "1.9 GB" },
+                { name: "Terminator.2.Judgement.Day.mp4", size: "1.7 GB" },
+                { name: "Top.Gun.Maverick.2022.mkv", size: "2.5 GB" }
+            ]
+        },
+        nollywood: {
+            title: "Nollywood & Afro Vault 🇳🇬",
+            sub: "Top African Cinema & Blockbusters",
+            movies: [
+                { name: "The.Battle.Buka.Street.mp4", size: "1.6 GB" },
+                { name: "Gangs.of.Lagos.2023.mkv", size: "1.9 GB" },
+                { name: "Brother.Eliza.Nollywood.mp4", size: "1.4 GB" },
+                { name: "Aníkúlápó.Netflix.mkv", size: "2.0 GB" },
+                { name: "King.of.Boys.Return.mp4", size: "2.7 GB" },
+                { name: "Aginbata.Epic.Movie.mkv", size: "1.8 GB" },
+                { name: "Omo.Ghetto.The.Saga.mp4", size: "1.5 GB" },
+                { name: "Sugar.Rush.Action.mp4", size: "1.3 GB" },
+                { name: "Living.in.Bondage.Breaking.Free.mkv", size: "2.1 GB" },
+                { name: "Prophetess.Comedy.mp4", size: "1.2 GB" },
+                { name: "Chief.Daddy.2.mkv", size: "1.6 GB" },
+                { name: "Blood.Sisters.Series.mp4", size: "3.2 GB" },
+                { name: "Ijogbon.Netflix.mkv", size: "1.7 GB" },
+                { name: "Freedom.Way.Nollywood.mp4", size: "1.5 GB" },
+                { name: "The.Wedding.Party.Classic.mp4", size: "1.4 GB" }
+            ]
+        },
+        anime: {
+            title: "Anime & Animation Hub ⚡",
+            sub: "Top Rated Animated Features",
+            movies: [
+                { name: "Spirited.Away.2001.1080p.mkv", size: "1.8 GB" },
+                { name: "Your.Name.Kimi.No.Na.Wa.mp4", size: "1.6 GB" },
+                { name: "Demon.Slayer.Mugen.Train.mkv", size: "2.0 GB" },
+                { name: "Suzume.2022.BluRay.mp4", size: "1.9 GB" },
+                { name: "Attack.on.Titan.Final.Movie.mkv", size: "2.5 GB" },
+                { name: "Jujutsu.Kaisen.0.Movie.mp4", size: "1.7 GB" },
+                { name: "A.Silent.Voice.Koe.No.Katachi.mp4", size: "1.5 GB" },
+                { name: "The.Boy.and.The.Heron.mkv", size: "2.1 GB" },
+                { name: "Weathering.With.You.mp4", size: "1.8 GB" },
+                { name: "One.Piece.Film.Red.mkv", size: "2.2 GB" },
+                { name: "Dragon.Ball.Super.Broly.mp4", size: "1.6 GB" },
+                { name: "Cowboy.Bebop.Movie.mkv", size: "1.4 GB" },
+                { name: "Princess.Mononoke.mp4", size: "1.9 GB" },
+                { name: "Puss.In.Boots.Last.Wish.mp4", size: "1.3 GB" },
+                { name: "Into.The.SpiderVerse.mp4", size: "2.0 GB" }
+            ]
+        },
+        ultrahd: {
+            title: "4K Ultra HD Vault 💎",
+            sub: "Masterpiece Collections",
+            movies: [
+                { name: "Avatar.2009.4K.HDR.mkv", size: "5.4 GB" },
+                { name: "Interstellar.4K.IMAX.mkv", size: "6.1 GB" },
+                { name: "Oppenheimer.2023.4K.UHD.mp4", size: "5.8 GB" },
+                { name: "The.Lord.of.The.Rings.4K.mkv", size: "7.2 GB" },
+                { name: "Blade.Runner.2049.4K.mp4", size: "5.0 GB" },
+                { name: "Gladiator.4K.Remastered.mkv", size: "4.8 GB" },
+                { name: "The.Batman.2022.4K.UHD.mp4", size: "4.9 GB" },
+                { name: "Top.Gun.Maverick.4K.mkv", size: "4.5 GB" },
+                { name: "Dune.Part.One.4K.mp4", size: "5.1 GB" },
+                { name: "Mad.Max.Fury.Road.4K.mkv", size: "4.2 GB" },
+                { name: "Inception.4K.HDR.mp4", size: "4.6 GB" },
+                { name: "Titanic.1997.4K.UHD.mkv", size: "6.5 GB" },
+                { name: "Jurassic.Park.4K.Remastered.mp4", size: "4.1 GB" },
+                { name: "SpiderMan.No.Way.Home.4K.mp4", size: "4.7 GB" },
+                { name: "The.Matrix.Resurrections.4K.mkv", size: "4.4 GB" }
+            ]
+        }
+    };
+
+    let currentChannelKey = 'cinema';
+    let currentTab = 'downloading'; // 'downloading' or 'downloaded'
+
+    // Stack Data Structure for Downloads
+    class DownloadStack {
+        constructor() {
+            this.items = [];
+        }
+        push(item) { this.items.push(item); }
+        pop() { return this.items.pop(); }
+        peek() { return this.items[this.items.length - 1]; }
+        isEmpty() { return this.items.length === 0; }
+        size() { return this.items.length; }
+    }
+
+    const downloadStack = new DownloadStack();
+    const completedList = []; // Finished items array
+    let downloadTimer = null;
+
+    function switchChannel(key) {
+        currentChannelKey = key;
+        document.querySelectorAll('.channel-item').forEach(el => el.classList.remove('active'));
+        event.currentTarget.classList.add('active');
+
+        const channel = channelsData[key];
+        document.getElementById('currentChannelTitle').textContent = channel.title;
+        document.getElementById('currentChannelSub').textContent = channel.sub;
+
+        renderMovies(channel.movies);
+    }
+
+    function renderMovies(moviesArray) {
+        const container = document.getElementById('moviesContainer');
+        container.innerHTML = '';
+
+        moviesArray.forEach(movie => {
+            const card = document.createElement('div');
+            card.className = 'movie-card';
+            card.innerHTML = `
+                <div class="movie-icon">🎬</div>
+                <div class="movie-details">
+                    <div class="movie-title">${movie.name}</div>
+                    <div class="movie-meta">${movie.size} • Video File</div>
+                </div>
+                <div class="action-buttons">
+                    <button class="btn-action btn-play" onclick="playVideo('${movie.name}')">▶ Play</button>
+                    <button class="btn-action btn-download" onclick="requestDownload('${movie.name}')">⬇ Download</button>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    function filterMovies() {
+        const query = document.getElementById('searchInput').value.toLowerCase();
+        const allMovies = channelsData[currentChannelKey].movies;
+        const filtered = allMovies.filter(m => m.name.toLowerCase().includes(query));
+        renderMovies(filtered);
+    }
+
+    function playVideo(movieName) {
+        document.getElementById('modalTitle').textContent = `Now Streaming: ${movieName}`;
+        document.getElementById('videoModal').style.display = 'flex';
+        document.getElementById('trailerVideo').play();
+    }
+
+    function closeVideoModal() {
+        document.getElementById('videoModal').style.display = 'none';
+        document.getElementById('trailerVideo').pause();
+    }
+
+    function switchTab(tabName) {
+        currentTab = tabName;
+        document.getElementById('tabDownloading').className = `tab ${tabName === 'downloading' ? 'active' : ''}`;
+        document.getElementById('tabDownloaded').className = `tab ${tabName === 'downloaded' ? 'active' : ''}`;
+        renderManager();
+    }
+
+    function requestDownload(movieName) {
+        // Prevent duplicate active/queued downloads
+        if (downloadStack.items.some(i => i.name === movieName) || completedList.some(i => i.name === movieName)) {
+            alert(`'${movieName}' is already downloading or downloaded!`);
+            return;
+        }
+
+        const newItem = {
+            id: Date.now() + Math.random(),
+            name: movieName,
+            progress: 0
+        };
+
+        // PUSH onto stack
+        downloadStack.push(newItem);
+        currentTab = 'downloading';
+        switchTab('downloading');
+        renderManager();
+        startDownloadLoop();
+    }
+
+    function startDownloadLoop() {
+        if (downloadTimer) clearInterval(downloadTimer);
+
+        downloadTimer = setInterval(() => {
+            if (downloadStack.isEmpty()) {
+                clearInterval(downloadTimer);
+                renderManager();
+                return;
+            }
+
+            // Work on top element of Stack (LIFO)
+            const activeItem = downloadStack.peek();
+            activeItem.progress += 1.2; // Steady, realistic speed
+
+            if (activeItem.progress >= 100) {
+                activeItem.progress = 100;
+                // POP from stack and move to completed
+                const finished = downloadStack.pop();
+                completedList.unshift(finished);
+            }
+
+            renderManager();
+        }, 120);
+    }
+
+    function renderManager() {
+        const content = document.getElementById('downloadsContent');
+        document.getElementById('activeCount').textContent = downloadStack.size();
+        document.getElementById('completedCount').textContent = completedList.length;
+
+        if (currentTab === 'downloading') {
+            if (downloadStack.isEmpty()) {
+                content.innerHTML = `<div class="empty-box">No active downloads.<br>Click <b>"Download"</b> on any movie!</div>`;
+                return;
+            }
+
+            content.innerHTML = '';
+            // Display stack from top to bottom
+            const stackSnapshot = [...downloadStack.items].reverse();
+            const topId = downloadStack.peek() ? downloadStack.peek().id : null;
+
+            stackSnapshot.forEach(item => {
+                const isTop = item.id === topId;
+                const card = document.createElement('div');
+                card.className = `download-card ${isTop ? 'active' : 'paused'}`;
+                card.innerHTML = `
+                    <div class="dl-header">
+                        <span class="dl-name">${item.name}</span>
+                        <span class="status-tag ${isTop ? 'active' : 'paused'}">
+                            ${isTop ? 'Downloading' : 'Paused'}
+                        </span>
+                    </div>
+                    <div style="font-size:0.75rem; color:var(--text-muted); display:flex; justify-content:space-between;">
+                        <span>${isTop ? 'Speed: 5.2 MB/s' : 'Waiting in Stack'}</span>
+                        <span>${Math.floor(item.progress)}%</span>
+                    </div>
+                    <div class="progress-track">
+                        <div class="progress-fill ${isTop ? '' : 'paused'}" style="width: ${item.progress}%"></div>
+                    </div>
+                    <div class="stack-note">
+                        ${isTop ? '▲ TOP OF STACK (ACTIVE)' : '▼ PUSHED DOWN (PAUSED)'}
+                    </div>
+                `;
+                content.appendChild(card);
+            });
+
+        } else {
+            // Downloaded Tab
+            if (completedList.length === 0) {
+                content.innerHTML = `<div class="empty-box">No completed downloads yet.</div>`;
+                return;
+            }
+
+            content.innerHTML = '';
+            completedList.forEach(item => {
+                const card = document.createElement('div');
+                card.className = `download-card completed`;
+                card.innerHTML = `
+                    <div class="dl-header">
+                        <span class="dl-name">${item.name}</span>
+                        <span class="status-tag completed">Completed</span>
+                    </div>
+                    <div style="font-size:0.75rem; color:var(--tg-blue); margin-top:4px;">
+                        ✔ Saved to Device Storage
+                    </div>
+                    <div class="progress-track">
+                        <div class="progress-fill completed"></div>
+                    </div>
+                `;
+                content.appendChild(card);
+            });
+        }
+    }
+
+    // Initialize default channel view
+    renderMovies(channelsData.cinema.movies);
+</script>
+
+</body>
+</html>
